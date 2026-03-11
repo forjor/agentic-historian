@@ -30,6 +30,14 @@ func main() {
 	// Export HISTORICAL_PATH so child commands inherit it
 	os.Setenv("HISTORICAL_PATH", sessionDir)
 
+	logPath := fmt.Sprintf("%s/session_log.txt", sessionDir)
+	logFile, err := os.Create(logPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error creating session log: %v\n", err)
+		os.Exit(1)
+	}
+	defer logFile.Close()
+
 	fmt.Printf("Session started: %s\n", sessionDir)
 	fmt.Printf("Type 'exit!' to end the session.\n\n")
 
@@ -47,22 +55,13 @@ func main() {
 			fmt.Println("Session ended.")
 			break
 		}
-		runCommand(line, sessionDir)
+		runCommand(line, logFile)
 	}
 }
 
-func runCommand(cmdLine, sessionDir string) {
+func runCommand(cmdLine string, logFile *os.File) {
 	timestamp := time.Now()
-	outFileName := fmt.Sprintf("%s/%s_%d", sessionDir, timestamp.Format("2006-01-02_15-04-05"), timestamp.Unix())
-
-	outFile, err := os.Create(outFileName)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error creating output file: %v\n", err)
-		return
-	}
-	defer outFile.Close()
-
-	fmt.Fprintf(outFile, "$ %s\n", cmdLine)
+	fmt.Fprintf(logFile, "\n[%s]\n$ %s\n", timestamp.Format("2006-01-02 15:04:05"), cmdLine)
 
 	cmd := exec.Command("bash", "-c", cmdLine)
 	cmd.Env = os.Environ()
@@ -85,19 +84,17 @@ func runCommand(cmdLine, sessionDir string) {
 
 	done := make(chan struct{}, 2)
 	go func() {
-		io.Copy(io.MultiWriter(os.Stdout, outFile), stdoutPipe)
+		io.Copy(io.MultiWriter(os.Stdout, logFile), stdoutPipe)
 		done <- struct{}{}
 	}()
 	go func() {
-		io.Copy(io.MultiWriter(os.Stderr, outFile), stderrPipe)
+		io.Copy(io.MultiWriter(os.Stderr, logFile), stderrPipe)
 		done <- struct{}{}
 	}()
 	<-done
 	<-done
 
 	if err := cmd.Wait(); err != nil {
-		fmt.Fprintf(outFile, "\n[exit: %v]\n", err)
+		fmt.Fprintf(logFile, "\n[exit: %v]\n", err)
 	}
-
-	fmt.Fprintf(os.Stderr, "\n[recorded: %s]\n", outFileName)
 }
