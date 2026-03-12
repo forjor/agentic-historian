@@ -70,10 +70,11 @@ START_TIME=$(date +%s)
 # Run copilot, streaming output to terminal and capturing to file
 COPILOT_EXIT=0
 if [[ "$MODE" == "-p" ]]; then
-    copilot -p "$@" 2>&1 | tee "$HISTORY_DIR/raw_output.txt"
+    copilot --add-dir "$HISTORICAL_PATH" -p "$@" 2>&1 | tee "$HISTORY_DIR/raw_output.txt"
     COPILOT_EXIT="${PIPESTATUS[0]}"
 else
-    copilot --allow-all-tools --add-dir "$CALL_PWD" -p "$@" 2>&1 | tee "$HISTORY_DIR/raw_output.txt"
+    # TODO - consider whether we want execute mode agent to have access to historical files by default
+    copilot --allow-all-tools --add-dir "$HISTORICAL_PATH" --add-dir "$CALL_PWD" -p "$@" 2>&1 | tee "$HISTORY_DIR/raw_output.txt"
     COPILOT_EXIT="${PIPESTATUS[0]}"
 fi
 

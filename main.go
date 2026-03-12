@@ -1,13 +1,14 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/chzyer/readline"
 )
 
 const defaultHistoricalSessionPath = "/workspaces/workspace/ai/agentic-history"
@@ -41,13 +42,31 @@ func main() {
 	fmt.Printf("Session started: %s\n", sessionDir)
 	fmt.Printf("Type 'exit!' to end the session.\n\n")
 
-	scanner := bufio.NewScanner(os.Stdin)
+	historyFile := fmt.Sprintf("%s/.historian_history", os.Getenv("HOME"))
+	rl, err := readline.NewEx(&readline.Config{
+		Prompt:          "$ ",
+		HistoryFile:     historyFile,
+		InterruptPrompt: "^C",
+		EOFPrompt:       "exit",
+	})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error initializing readline: %v\n", err)
+		os.Exit(1)
+	}
+	defer rl.Close()
+
 	for {
-		fmt.Print("$ ")
-		if !scanner.Scan() {
+		line, err := rl.Readline()
+		if err == readline.ErrInterrupt {
+			if len(line) == 0 {
+				break
+			}
+			continue
+		}
+		if err == io.EOF {
 			break
 		}
-		line := strings.TrimSpace(scanner.Text())
+		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
 		}
