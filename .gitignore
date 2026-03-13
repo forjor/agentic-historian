@@ -32,3 +32,6 @@ go.work.sum
 # .vscode/
 
 historian-shell
+agentic-historian
+
+ignored-scratch/**
